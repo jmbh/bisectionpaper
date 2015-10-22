@@ -1,0 +1,17 @@
+{
+    "contents" : "# install & load necessary packages\nlibrary(devtools)\ninstall_github(\"jmbh/mt.analysis\") #package currently only on github\nlibrary(plyr)\nlibrary(mt.analysis)\n\n#get data movement data\nsetwd(\"G:/bisectionpaper/_repository/3_Data/traj\")\nl_files <- list.files(getwd())\nf_read_custom <- function(x) {read.csv(x, sep=\"\\t\", stringsAsFactors = FALSE)}\nd_raw <- do.call(rbind, lapply(l_files, f_read_custom))\ncolnames(d_raw) <- c('id', 'trial', 'pic', 'x', 'y', 'time')\nd_raw$ycor <- (d_raw$y-768)*-1\nd_raw$b <- rep(0, nrow(d_raw))\n\n#time normalize (see Spivey et al. 2005)\nbox.cor <- list(\"start\"=c(512,200), \"left\"=c(512.0001,408), \"right\"=c(512.0001,408))\nd_proc <- mt.preprocess(d_raw, box.cor, \n                        i.id=c(\"id\", \"trial\", \"pic\"), \n                        i.measure=c(\"x\", \"ycor\", \"time\", \"b\"))\n\n#flag experiments\nconds <- ddply(d_proc, c(i.id),  function(x) {\n  x<-as.numeric(x$pic)\n  if(x[3]<9)                 {c<-1\n  }else if(x[3]>8  & x[3]<17) {c<-2} \n  else if(x[3]>16 & x[3]<25) {c<-3}\n  else if(x[3]>24 & x[3]<33) {c<-4}\n  else if(x[3]>32 & x[3]<41) {c<-5}\n  else if(x[3]>40 & x[3]<49) {c<-6}\n  else {c<-8} #detect unclassified trials\n  matrix(rep(c,101), ncol=1)\n} )\n\nd_proc$larger <- 0\nd_proc$larger[conds$`1`==1] <- 1\nd_proc$larger[conds$`1`==2] <- 0\nd_proc$larger[conds$`1`==3] <- 1\nd_proc$larger[conds$`1`==4] <- 0\nd_proc$larger[conds$`1`==5] <- 1\nd_proc$larger[conds$`1`==6] <- 0\nd_proc$exp <- 0\nd_proc$exp[conds$`1`==1] <- 1\nd_proc$exp[conds$`1`==2] <- 1\nd_proc$exp[conds$`1`==3] <- 2\nd_proc$exp[conds$`1`==4] <- 2\nd_proc$exp[conds$`1`==5] <- 3\nd_proc$exp[conds$`1`==6] <- 3\n\n\n#add initiation time + timeoff data from response-data\nsetwd(\"G:/bisectionpaper/_repository/3_Data/bias\")\nl_files <- list.files(getwd())\nf_read_custom <- function(x) {read.csv(x, sep=\"\\t\", stringsAsFactors = FALSE)}\nd_rawb <- do.call(rbind, lapply(l_files, f_read_custom))\ncolnames(d_rawb) <- c('id', 'trial', 'pic', 'timeover', 'rt_total', 'rt_planning', 'control_planning_x', 'control_planning_y', 'rt_movement', 'x', 'y')\n\n#add planning time to data frame\nhead(d_rawb)\nrt.init <- ddply(d_rawb, .(id, trial, pic, timeover), function(x) {\n  matrix(rep(x$rt_planning), 101, ncol=1) \n})\nrt.init <- subset(rt.init, timeover!=1)\na <- cbind(\n  ddply(d_rawb_not, .(id), function(x) length(unique(x$trial))),\n  ddply(d_all, .(id), function(x) length(unique(x$trial)))\n  )\n\nd_rawb_not <- d_rawb[d_rawb$timeover==0,]\nupt <- unique(d_rawb_not[,c(\"id\", \"trial\")])\nuptc <- paste0(upt[,1], upt[,2])\n\n#drop timeover trials & get init time\nd_all <- ddply(d_proc, .(id, trial), function(x) {\n  if(paste0(x$id, x$trial)[1] %in% uptc) {\n    x$rt.init <- d_rawb[d_rawb$id==x$id[1] & d_rawb$trial==x$trial[1],]$rt_planning\n    x\n  }\n})\n\nnrow(d_all) == nrow(d_rawb_not)*101 #check: do trials in bias-file match trials in trajectory-file?\n\n#export\nsetwd(\"G:/bisectionpaper/_repository/4_Code\")\nsaveRDS(d_all, \"data_preprocessed.RDS\")\n",
+    "created" : 1440169630507.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "552326703",
+    "id" : "42F23369",
+    "lastKnownWriteTime" : 1440169982,
+    "path" : "C:/Users/jo/Dropbox/LineBisec/_repository/4_Code/linebisec_preprocess.R",
+    "project_path" : "linebisec_preprocess.R",
+    "properties" : {
+    },
+    "relative_order" : 1,
+    "source_on_save" : false,
+    "type" : "r_source"
+}
